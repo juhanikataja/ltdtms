@@ -98,9 +98,8 @@ function get_samples_nuts(logπ, initial_θ, D::Int64; n_samples=1000, n_adapts=
 
 end
 
-function get_site_stats(sites::Union{Int64, Array{Int64,1}, UnitRange{Int64}}, dat::ThrData; # {{{
-             n_samples = 1000, n_adapts=200, get_mean_Ethr=false, only_MAP=false,
-             progress=false) 
+function get_site_stats(sites::Union{Int64, Array{Int64,1}, UnitRange{Int64}}, dat::ThrData; 
+             n_samples = 1000, n_adapts=200, progress=false) 
 
     D = 3;
     metric=DenseEuclideanMetric(D)
@@ -150,7 +149,7 @@ function get_site_stats(sites::Union{Int64, Array{Int64,1}, UnitRange{Int64}}, d
     end
     retval
 
-end # }}}
+end 
 
 
 function get_site_stats_path(site, dat::ThrData; 

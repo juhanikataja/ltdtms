@@ -10,6 +10,8 @@ include("posterior.jl")
 
 import .Lpdfs: lpost, ThrData, lpost_simple
 
+export get_site_stats
+
 ## The computing functions
 function makeThrData(indat::Dict) 
 
@@ -18,13 +20,6 @@ function makeThrData(indat::Dict)
   minThr = indat[:minThr]
   h = indat[:resolution]
   MT = [t for t in indat[:MT]][:]
-
-  i_eq = findall(x-> (x>0 && x <1), MT)
-
-  #= MT = MT[i_eq] =#
-  #= EE = EE[i_eq, :, :] =#
-
-  # TODO: clean this up
 
   return ThrData(MT, EE, K, 1/minThr, h)
 end 

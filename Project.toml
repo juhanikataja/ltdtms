@@ -1,0 +1,12 @@
+name = "LTDTMS"
+uuid = "c7e4ac26-072f-4b76-a9df-71c99249ca70"
+authors = ["Juhani Kataja <juhani.m.kataja@aalto.fi>"]
+version = "0.1.0"
+
+[deps]
+AdvancedHMC = "0bf59076-c3b1-5ca4-86bd-e02cd72cde3d"
+BSON = "fbb218c0-5317-5bc6-957e-2ee96dd4b1f0"
+ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+Optim = "429524aa-4258-5aef-a3af-852621145aeb"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"

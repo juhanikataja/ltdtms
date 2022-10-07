@@ -41,10 +41,11 @@ end
 module TestLTD
 
 
+include("../src/LTDTMS.jl")
 import BSON # TODO: get rid of BSON or not...
-import LTDTMS.Lpdfs: ThrData
-import LTDTMS: makeThrData 
-import LTDTMS: get_site_stats, get_site_stats_path
+import .LTDTMS.Lpdfs: ThrData
+import .LTDTMS: makeThrData 
+import .LTDTMS: get_site_stats, get_site_stats_path
 
 function testme() # TODO: Tests only that code runs but doesn't look at results
 
@@ -67,8 +68,7 @@ function testme() # TODO: Tests only that code runs but doesn't look at results
 
 
     @info "Precompile run"
-    @time stats = get_site_stats(sites_small, dat; n_samples=1000, n_adapts=200, 
-                                              use_NUTS=nuts[1])
+    @time stats = get_site_stats(sites_small, dat; n_samples=1000, n_adapts=200)
 
     precompiled_Z=[tree_logint_to_Z(stats[n][1]) for n in 1:length(sites_small)]
 
@@ -76,7 +76,7 @@ function testme() # TODO: Tests only that code runs but doesn't look at results
     n_samples = [500, 500]
 
     @time Zcoeffs_rounds = map(1:length(n_samples)) do round
-        #= sites = 1:size(inputdata[:EE],3) =#
+        sites = 1:size(inputdata[:EE],3)
         stats = get_site_stats(sites, dat; n_samples=n_samples[round], n_adapts=50)
 
         N = 1:length(sites)
@@ -98,7 +98,7 @@ function testme() # TODO: Tests only that code runs but doesn't look at results
 
     for site = [1,Z_i]
         Z = Zcoeffs[site]
-        stats_path = get_site_stats_path(sites[site], dat; λs=10.0 .^(-4:0.25:0), n_samples=10000, n_adapts=200)
+        stats_path = get_site_stats_path(sites[site], dat; λs=10.0 .^(-4:0.5:0), n_samples=2000, n_adapts=200)
         Z_path = logquot_to_Z(stats_path[1])
         @info "Coefficients $(site): octree: $(Z) | path: $(Z_path) | quotient = $(Z/Z_path)\n"
     end

@@ -1,13 +1,13 @@
 using AdvancedHMC
 using LinearAlgebra
-using ForwardDiff
+import ForwardDiff
 using Optim
-import StaticArrays: SVector
 import ForwardDiff: Dual
 import .treeint
+using Debugger
 #= import Logging =#
 
-import .Lpdfs: lpost, ThrData, lpost_simple, lpost_joint
+import .Lpdfs: lpost, ThrData, lpost_simple, lpost_joint, lpost_simple_tes
 
 
 function get_samples(dat::ThrData, n,lambda;n_samples=2000, progress=false, n_adapts=1000) 
@@ -63,27 +63,33 @@ function get_samples(dat::ThrData, lpdf::Function, n; n_samples=2000, progress=f
 end 
 
 # stereo maps and dets {{{
-function st_map_norot(s,alpha)
+
+function det_st_map(s,α)
+  return 4*α^3*s[3]^2 / ((1+s[1]^2+s[2]^2)^2)
+end
+
+function st_map(s,Q,α)
   P = s[1]^2+s[2]^2
-  S = alpha*s[3].*[(P-1), 2*s[1], 2*s[2]]./(1+P)
+  S0 = Q*[(P-1), 2*s[1], 2*s[2]]
+  return S0.*(α*s[3]/(P+1))
 end
 
-function det_st_map_norot(s,alpha) # Don't try to calculate this by hand, use CAS
-  4*alpha^3*s[3]^2 / ((1+s[1]^2+s[2]^2)^2)
+function stereo_post(s, T, E, K, Ethrp, Q, α)
+  s_mapped = st_map(s,Q,α)
+  lpost_simple_tes(s_mapped, T, E, K,  1/Ethrp) + log(det_st_map(s,α))
 end
 
-function st_map(s,Q,alpha)
-  Q*st_map_norot(s,alpha)
-end
-
-function stereo_post(s, alpha, dat::ThrData, site, Q)
-  lpost_simple(st_map(s,Q,alpha), dat, site) + log(det_st_map_norot(s,alpha))
+function stereo_post(s, α, dat::ThrData, site, Q)
+  s_mapped = st_map(s,Q,α)
+  @inbounds lpost_simple_tes(s_mapped, dat.MT, dat.EE[:,:,site], dat.K, dat.smax) + log(det_st_map(s,α))
+  #= lpost_simple(st_map(s,Q,α), dat, site) + log(det_st_map(s,α)) =#
 end
 # End of stereo maps and dets (don't export these) }}}
 
-function get_samples_nuts(logπ, initial_θ, D::Int64; n_samples=1000, n_adapts=200, progress=false)
+function get_samples_nuts(logπ, initial_θ, D::Int64; 
+    n_samples=1000, n_adapts=200, progress=false)
     metric = DenseEuclideanMetric(D)
-    hamiltonian = Hamiltonian(metric, logπ, ForwardDiff)
+      hamiltonian = Hamiltonian(metric, logπ, ForwardDiff)
     integrator = Leapfrog(find_good_stepsize(hamiltonian, initial_θ))
     proposal = NUTS{MultinomialTS, GeneralisedNoUTurn}(integrator)
     samples, stats = sample(hamiltonian, 
@@ -99,55 +105,55 @@ function get_samples_nuts(logπ, initial_θ, D::Int64; n_samples=1000, n_adapts=
 end
 
 function get_site_stats(sites::Union{Int64, Array{Int64,1}, UnitRange{Int64}}, dat::ThrData; 
-             n_samples = 1000, n_adapts=200, progress=false) 
+    n_samples = 1000, n_adapts=200, progress=false) 
 
-    D = 3;
-    metric=DenseEuclideanMetric(D)
+  D = 3;
+  metric=DenseEuclideanMetric(D)
 
-    retval = map(sites) do site
-        # posteriors and transformation maps
-        stmap, post, epost = 
-        let Z = svd(dat.EE[:,:,site]), 
-            Q = if size(Z.Vt, 1) == 2
-                Q = zeros(Float64,(3,3))
-                Q[:,1:2] = Z.Vt';
-                Q[:,3] = cross(Q[:,1], Q[:,2]);
-                Q
-            elseif size(Z.Vt, 1) == 3
-                Z.Vt'
-            end
+  retval = map(sites) do site
+    # posteriors and transformation maps
+    stmap, post, epost = 
+    let Z = svd(dat.EE[:,:,site]), 
+      Q = if size(Z.Vt, 1) == 2
+        Q = zeros(Float64,(3,3))
+        Q[:,1:2] = Z.Vt';
+        Q[:,3] = cross(Q[:,1], Q[:,2]);
+        Q
+      elseif size(Z.Vt, 1) == 3
+        Z.Vt'
+      end
 
-            omap = optimize(1e-3.*[1,1,1];autodiff=:forward) do s
-                -lpost_simple(s, dat, site)
-            end
+      omap = optimize(1e-3.*[1,1,1];autodiff=:forward) do s
+        -lpost_simple(s, dat, site)
+      end
 
-            let alpha = norm(omap.minimizer)/2
+      let alpha = norm(omap.minimizer)/2
 
-                stmap = s->st_map(s, Q, alpha)
-                post = s->stereo_post(s, alpha, dat, site, Q)
-                epost = s->exp(stereo_post(s, alpha, dat, site, Q))
-                stmap, post, epost
-            end
-        end
-
-        #= samples, stats, initial_lpdf_val = get_samples_stmap() =#
-        samples, stats = get_samples_nuts(post, [0.0, 0.0, 1.0], 3; 
-                                          n_samples=n_samples, n_adapts=n_adapts,
-                                          progress=progress)
-
-        tree_integral = treeint.integrate(epost, vcat(samples'...); pad=0.21, maxdepth=4)
-
-        cart_samples = map(stmap, samples)
-        mean_s = sum(cart_samples)/length(cart_samples)
-        mean_Ethr = sum( (x->1 /sqrt(sum(x.^2))).(cart_samples) )/length(cart_samples)
-        mean_d =    sum( (x->x./sqrt(sum(x.^2))).(cart_samples) )/length(cart_samples)
-
-        #= integrals = treeint.integrate(tree_integrand, vcat(samples'...); pad=0.21, maxdepth=4) =#
-        #= @info "mean_s[1:3], integrals[2:4] ./integrals[1]: $(mean_s[1:3]), $(integrals[2:4] ./integrals[1])" =#
-
-        log(tree_integral), mean_s, mean_Ethr, mean_d
+        stmap = s->st_map(s, Q, alpha)
+        post = s->stereo_post(s, alpha, dat, site, Q)
+        epost = s->exp(stereo_post(s, alpha, dat, site, Q))
+        stmap, post, epost
+      end
     end
-    retval
+
+    #= samples, stats, initial_lpdf_val = get_samples_stmap() =#
+    samples, stats = get_samples_nuts(post, [0.0, 0.0, 1.0], 3; 
+                                      n_samples=n_samples, n_adapts=n_adapts,
+                                      progress=progress)
+
+    tree_integral = treeint.integrate(epost, vcat(samples'...); pad=0.21, maxdepth=4)
+
+    cart_samples = map(stmap, samples)
+    mean_s = sum(cart_samples)/length(cart_samples)
+    mean_Ethr = sum( (x->1 /sqrt(sum(x.^2))).(cart_samples) )/length(cart_samples)
+    mean_d =    sum( (x->x./sqrt(sum(x.^2))).(cart_samples) )/length(cart_samples)
+
+    #= integrals = treeint.integrate(tree_integrand, vcat(samples'...); pad=0.21, maxdepth=4) =#
+    #= @info "mean_s[1:3], integrals[2:4] ./integrals[1]: $(mean_s[1:3]), $(integrals[2:4] ./integrals[1])" =#
+
+    return log(tree_integral), mean_s, mean_Ethr, mean_d
+  end
+  retval
 
 end 
 

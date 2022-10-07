@@ -1,18 +1,15 @@
 
 module LTDTMS
-#= include("lpdfs.jl") =#
-#= include("treeint.jl") =#
 
-#= using .Lpdfs: ThrData =#
 include("lpdfs.jl")
 include("treeint.jl")
 include("posterior.jl")
 
 import .Lpdfs: lpost, ThrData, lpost_simple
 
-export get_site_stats
+export get_site_stats, makeThrData
 
-## The computing functions
+## mangle a Dictionary to ThrData
 function makeThrData(indat::Dict) 
 
   EE = indat[:EE]
@@ -21,7 +18,7 @@ function makeThrData(indat::Dict)
   h = indat[:resolution]
   MT = [t for t in indat[:MT]][:]
 
-  return ThrData(MT, EE, K, 1/minThr, h)
+  return ThrData(MT, EE, K, minThr, h)
 end 
 
 

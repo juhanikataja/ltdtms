@@ -4,10 +4,9 @@ import ForwardDiff
 using Optim
 import ForwardDiff: Dual
 import .treeint
-using Debugger
 #= import Logging =#
 
-import .Lpdfs: lpost, ThrData, lpost_simple, lpost_joint, lpost_simple_tes
+import .Lpdfs: lpost, ThrData, lpost_simple, lpost_joint
 
 
 function get_samples(dat::ThrData, n,lambda;n_samples=2000, progress=false, n_adapts=1000) 
@@ -76,12 +75,12 @@ end
 
 function stereo_post(s, T, E, K, Ethrp, Q, α)
   s_mapped = st_map(s,Q,α)
-  lpost_simple_tes(s_mapped, T, E, K,  1/Ethrp) + log(det_st_map(s,α))
+  lpost_simple(s_mapped, T, E, K,  1/Ethrp) + log(det_st_map(s,α))
 end
 
 function stereo_post(s, α, dat::ThrData, site, Q)
   s_mapped = st_map(s,Q,α)
-  @inbounds lpost_simple_tes(s_mapped, dat.MT, dat.EE[:,:,site], dat.K, dat.smax) + log(det_st_map(s,α))
+  @inbounds lpost_simple(s_mapped, dat.MT, dat.EE[:,:,site], dat.K, dat.smax) + log(det_st_map(s,α))
   #= lpost_simple(st_map(s,Q,α), dat, site) + log(det_st_map(s,α)) =#
 end
 # End of stereo maps and dets (don't export these) }}}
@@ -105,11 +104,12 @@ function get_samples_nuts(logπ, initial_θ, D::Int64;
 end
 
 function get_site_stats(sites::Union{Int64, Array{Int64,1}, UnitRange{Int64}}, dat::ThrData; 
-    n_samples = 1000, n_adapts=200, progress=false) 
+    n_samples = 1000, n_adapts=200, progress=false, treedepth=5) 
 
   D = 3;
   metric=DenseEuclideanMetric(D)
 
+  logZmult = (4/3*π*dat.smax^3)
   retval = map(sites) do site
     # posteriors and transformation maps
     stmap, post, epost = 
@@ -128,7 +128,6 @@ function get_site_stats(sites::Union{Int64, Array{Int64,1}, UnitRange{Int64}}, d
       end
 
       let alpha = norm(omap.minimizer)/2
-
         stmap = s->st_map(s, Q, alpha)
         post = s->stereo_post(s, alpha, dat, site, Q)
         epost = s->exp(stereo_post(s, alpha, dat, site, Q))
@@ -141,7 +140,7 @@ function get_site_stats(sites::Union{Int64, Array{Int64,1}, UnitRange{Int64}}, d
                                       n_samples=n_samples, n_adapts=n_adapts,
                                       progress=progress)
 
-    tree_integral = treeint.integrate(epost, vcat(samples'...); pad=0.21, maxdepth=4)
+    tree_integral = treeint.integrate(epost, vcat(samples'...); pad=0.21, maxdepth=treedepth)
 
     cart_samples = map(stmap, samples)
     mean_s = sum(cart_samples)/length(cart_samples)
@@ -151,7 +150,7 @@ function get_site_stats(sites::Union{Int64, Array{Int64,1}, UnitRange{Int64}}, d
     #= integrals = treeint.integrate(tree_integrand, vcat(samples'...); pad=0.21, maxdepth=4) =#
     #= @info "mean_s[1:3], integrals[2:4] ./integrals[1]: $(mean_s[1:3]), $(integrals[2:4] ./integrals[1])" =#
 
-    return log(tree_integral), mean_s, mean_Ethr, mean_d
+    return tree_integral/logZmult, mean_s, mean_Ethr, mean_d
   end
   retval
 
@@ -198,8 +197,8 @@ function get_site_stats_path(site, dat::ThrData;
       end
   end
   logquot = sum( (λs[2:end]-λs[1:end-1]).*(Es[1:end-1] + Es[2:end]))/2;
-
-  return logquot, mean_s, mean_Ethr, mean_d
+  Z = exp(logquot)/(4/3*π)*(sqrt(2*π)*0.35)^3
+  return Z, mean_s, mean_Ethr, mean_d
 end
 
 
@@ -208,7 +207,7 @@ end
 
   Returns the max angle of electric field vectors at the site
   """
-  function get_site_angle(site, meas_data) # {{{
+  function get_site_angle(site, meas_data::ThrData) # {{{
     ONE_MINUS_EPS=1.000001 # Scale vectors so that they e.e/|e||e| is definitely \leq 1
     EE = meas_data.EE[:,:,site]
     n_E = sqrt.(sum(EE.^2; dims=2))*ONE_MINUS_EPS

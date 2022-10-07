@@ -1,28 +1,36 @@
 module Lpdfs 
 
-using Debugger
 LAMBDA_POWER = 1
 
-export lbox, ltanhstep, lpost, ThrData, lpost_joint, lpost_simple, lpost_simple_tes
+export lpost, ThrData, lpost_simple, lpost_simple_tes
 
-struct ThrData # {{{
+"""
+  Collects a motor threshold object that holds measured thresholds `MT`,
+  electric field data `EE`, noise coeff `K`, inverse of prior threshold for
+  electric field `smax = 1/Ethrprior`, and resolution `h`.
+
+  # Constructors
+
+  `ThrData(MT::Array{Float64,1}, E::Array{Float64,3}, K::Float64, Ethrprior::Float64, h::Float64)`
+"""
+struct ThrData
   MT::Array{Float64,1}
   EE::Array{Float64,3}
   K::Float64
   smax::Float64
-  h::Float64
-  
-  # TODO: Do bounds checks here that EE and MT are compatible sizes
-  """
-  ...
-  Collects a motor threshold object that holds electric field data, noise coeff K, prior threshold for electric field and resolution h
+  # h::Float64
 
-  ThrData(MT::Array{Float64,1}, EE::Array{Float64,3}, K::Float64, Ethrprior::Float64, h::Float64) = new(MT, EE, K, 1/Ethrprior, h)
-
-  ...
-  """
-  ThrData(MT::Array{Float64,1}, EE::Array{Float64,3}, K::Float64, Ethrprior::Float64, h::Float64) = new(MT, EE, K, 1/Ethrprior, h)
-end # }}}
+  # ThrData(MT::Array{Float64,1}, E::Array{Float64,3}, K::Float64, Ethrprior::Float64, h::Float64) = 
+  ThrData(MT::Array{Float64,1}, E::Array{Float64,3}, K::Float64, Ethrprior::Float64) = 
+  begin
+    return if size(MT,1) == size(E,1) && Ethrprior > 0.0 && K > 0.0
+      new(MT, E, K, 1/Ethrprior)
+    else
+      error("Incompatible input data")
+      new()
+    end
+  end
+end
 
 function ltanhstep_k(x;k=1)
   return if (-k*x > 20)
@@ -109,15 +117,10 @@ function lpost_simple(s, dat::ThrData, n)
   return exponent
 end
 
-function lpost_simple_tes(s, T,E, K, smax)
+function lpost_simple(s, T,E, K, smax)
     lπ = hit(s, T,E, K) + prior_s_simple(s, smax)
 
 end
 
-function lpost_joint(x, dat::ThrData, n) # {{{
-  exponent = 0
-  exponent = exponent + lbox(x[4]; a=0.001, b=0.999, k=[1000,1000], N=[4,4])
-  return exponent + lpost(x[1:3], x[4], dat, n)
-end # }}}
 
 end 

@@ -18,7 +18,7 @@ function makeThrData(indat::Dict)
   h = indat[:resolution]
   MT = [t for t in indat[:MT]][:]
 
-  return ThrData(MT, EE, K, minThr, h)
+  return ThrData(MT, EE, K, minThr)
 end 
 
 

@@ -6,7 +6,7 @@ import ForwardDiff: Dual
 import .treeint
 #= import Logging =#
 
-import .Lpdfs: lpost, ThrData, lpost_simple, lpost_joint
+import .Lpdfs: lpost, ThrData, lpost_simple
 
 
 function get_samples(dat::ThrData, n,lambda;n_samples=2000, progress=false, n_adapts=1000) 
@@ -103,6 +103,11 @@ function get_samples_nuts(logπ, initial_θ, D::Int64;
 
 end
 
+function get_site_stats(T, E, K, Ethrprior)
+    dat = Lpdfs.ThrData(T,E,K,Ethrprior)
+    get_site_stats(1:size(E,3), dat; n_samples=500, n_adapts=20)
+end
+import Base.Threads.@spawn
 function get_site_stats(sites::Union{Int64, Array{Int64,1}, UnitRange{Int64}}, dat::ThrData; 
     n_samples = 1000, n_adapts=200, progress=false, treedepth=5) 
 

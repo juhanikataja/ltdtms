@@ -1,0 +1,28 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+- family-names: "Kataja"
+  given-names: "Juhani"
+  orcid: "https://orcid.org/0000-0002-1212-0080"
+title: "Probabilistic LTD-TMS localization integrator"
+version: 0.9
+date-released: 2022-10-10
+url: "TBA"
+preferred-citation:
+  type: article
+  authors:
+  - family-names: "Kataja"
+    given-names: "Juhani"
+    orcid: "https://orcid.org/0000-0002-1212-0080"
+  - family-names: "Ilkka"
+    given-names: "Laakso"
+    orcid: "https://orcid.org/0000-0002-8162-1356"
+  - family-names: "Soldati"
+    given-names: "Marco"
+  - family-names: "Matilainen"
+    given-names: "Noora"
+  doi: "10.1088/1741-2552/ac1f2b"
+  journal: "Journal of Neural Engineering"
+  volume: 18
+  number: 4
+  year: 2021

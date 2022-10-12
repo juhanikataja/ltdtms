@@ -103,11 +103,35 @@ function get_samples_nuts(logπ, initial_θ, D::Int64;
 
 end
 
-function get_site_stats(T, E, K, Ethrprior)
-    dat = Lpdfs.ThrData(T,E,K,Ethrprior)
-    get_site_stats(1:size(E,3), dat; n_samples=500, n_adapts=20)
+"""
+    get_site_stats(T, E, K, Ethrprior; kwargs...)
+
+Given threshold vector `T`, field data array `E` (``N_{thr} \\times 3 \\times N_{site}``),
+hyperparameter `K`, prior threshold `Ethrprior`, returns LTD statistics at each
+site. 
+"""
+function get_site_stats(T, E, K, Ethrprior; kwargs...)
+    get_site_stats(1:size(E,3), Lpdfs.ThrData(T,E,K,Ethrprior); kwargs...)
 end
-import Base.Threads.@spawn
+
+"""
+    get_site_stats(sites::Union{Int64, Array{Int64,1}, UnitRange{Int64}}, dat::ThrData; n_samples = 1000, n_adapts=200, progress=false, treedepth=5) 
+
+Given `sites` and threshold data `dat`, returns LTD statistics as an array of n-tuples consisting of data
+``(Z, \\mathbf E [s], \\mathbf E [E_{thr}], \\mathbf E[d])``, where ``Z`` is
+the normalizing coefficient at that site.
+
+
+# Keyword arguments
+
+* `n_samples` number of HMC samples. 
+* `n_adapts` number of adaptation samples
+* `progress` show progress of HMC sampling
+* `treedepth` maximum depth of tree integrator
+
+Typically `n_samples = n_adapts = 100` produces very accurate results.
+
+"""
 function get_site_stats(sites::Union{Int64, Array{Int64,1}, UnitRange{Int64}}, dat::ThrData; 
     n_samples = 1000, n_adapts=200, progress=false, treedepth=5) 
 

@@ -1,76 +1,31 @@
-
-#= using Revise =#
-
-module TestTreeint
-include("../src/treeint.jl")
-import .treeint: integrate, gettree, Node
+module TestLTD
 using Test
 
-export testme
 
-function testme()
-    n_samples = 1000;
-
-    fun2(x) = exp(-0.5*sum(x.*x))/(sqrt(2*pi)^2)
-    fun2_2(x) = vcat(exp(-0.5*sum(x.*x))/(sqrt(2*pi)^2), exp(-0.5*sum(x.*x))/(sqrt(2*pi)^2)*x)
-    fun3(x) = exp(-0.5*sum(x.*x))/(sqrt(2*pi)^3)
-    samples = [randn(n_samples,i) for i in 1:3]
-
-    # Precompile
-    integral_2 = treeint.integrate(fun2, samples[2]; maxdepth = 5, pad = 0.51)
-    integral_2_2 = treeint.integrate(fun2_2, samples[2]; maxdepth = 5, pad = 0.51)
-    E_samples = [sum(S)/n_samples for S in samples]
-    integral_3 = treeint.integrate(fun3, samples[3]; maxdepth = 5, pad = 0.51)
-
-    print("2D integral = $(round(integral_2; digits=6)), error = $(1-integral_3)\n")
-    print("2D integral with expectation (tree, samples): ");
-    println(integral_2_2); print(" "); println(E_samples)
-    print("3D integral = $(round(integral_3; digits=6)), error = $(1-integral_3)\n")
-
-    @test abs(integral_2-1.0) < 5e-3
-    @test abs(integral_3-1.0) < 5e-3
-
-    tree = gettree(samples[2]; maxdepth=5, pad = 0.51)
-    integral_2_sametree = integrate(fun2, tree)
-
-    print("2D integral = $(round(integral_2_sametree; digits=6)), error = $(1-integral_3)\n")
-end
-
-end
-
-module TestLTD
-
-
-include("../src/LTDTMS.jl")
+#= include("../src/LTDTMS.jl") =#
 import BSON # TODO: get rid of BSON or not...
-import .LTDTMS.Lpdfs: ThrData
-import .LTDTMS: makeThrData 
-import .LTDTMS: get_site_stats, get_site_stats_path
+import LTDTMS.Lpdfs: ThrData
+import LTDTMS: makeThrData 
+import LTDTMS: get_site_stats, get_site_stats_path
 
 function testme() # TODO: Tests only that code runs but doesn't look at results
 
     inputdata = BSON.load("inputdata.bson")
     dat = makeThrData(inputdata)
 
-    λ = 10.0 .^(-4:1:0)
+    sites = 1:size(inputdata[:EE],3)
 
-    sites = [1,130,153,158,160,163]
-    sites_small = [1,130]
+    @info "Computing normalizing coefficients over $(length(sites)) sites"
+    n_samples = 500
+    tree_depth = 5
 
-    @info "Precompile run"
-    @time stats = get_site_stats(sites_small, dat; n_samples=1000, n_adapts=200)
-
-    precompiled_Z=[stats[n][1] for n in 1:length(sites_small)]
-
-    @info "Calculating Z"
-    n_samples = [500, 500]
-    tree_depth = [4,4]
-
-    @time Zcoeffs_rounds = map(1:length(n_samples)) do round
-        sites = 1:size(inputdata[:EE],3)
-        stats = get_site_stats(sites, dat; n_samples=n_samples[round], n_adapts=50, treedepth=tree_depth[round])
-
-        N = 1:length(sites)
+    Zcoeffs = 
+    let n_samples=500, 
+        tree_depth=5,
+        N = 1:length(sites),
+        stats = map(sites) do site
+            get_site_stats(site, dat; n_samples=n_samples, n_adapts=100, treedepth=tree_depth)
+        end
         Dict(:Z =>[stats[n][1] for n in N],
              :d => [stats[n][4] for n in N],
              :E => [stats[n][3] for n in N],
@@ -78,34 +33,17 @@ function testme() # TODO: Tests only that code runs but doesn't look at results
     end
 
 
-    Zcoeffs_mat = hcat(map(x->x[:Z],Zcoeffs_rounds)...)
-    map(1:length(sites)) do site
-        @info "Coefficients $(site): octree: $(Zcoeffs_mat[site,:])\n"
-    end
-
-    Zcoeffs = Zcoeffs_rounds[1][:Z]
+    Zcoeffs = Zcoeffs[:Z]
     Z_max, Z_i = findmax(Zcoeffs)
-    @info "maxind = $(Z_i)"
 
-    for site = [1,Z_i]
-        Z = Zcoeffs[site]
-        stats_path = get_site_stats_path(sites[site], dat; λs=10.0 .^(-5:1.0:0), n_samples=10000, n_adapts=200)
-        Z_path = stats_path[1]
-        @info "Coefficients $(site): octree: $(Z) | path: $(Z_path) | quotient = $(Z/Z_path)\n"
-    end
-    Zcoeffs_rounds
+    @test Z_i == 158
+    @test abs(Z_max - 4.759216449419632e6)/4.759216449419632e6 < 5e-2
 
 end
 
 end
-
-import .TestTreeint
 
 import .TestLTD
 @info "Testing LTD"
 TestLTD.testme()
-
-@info "Testing tree integrator"
-TestTreeint.testme()
-
 

@@ -1,5 +1,4 @@
-A Matlab workflow example is in `runme.m` file utilizing `jlcall.m` and
-`MATDaemon.jl`.
+A Matlab workflow example is in `runme.m`. It uses `jlcall.m` and `MATDaemon.jl`.
 
 `jlcall.m` is part of `MATDaemon.jl` package licensed under MIT license:
 

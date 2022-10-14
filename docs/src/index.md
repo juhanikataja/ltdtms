@@ -1,4 +1,4 @@
-# LTDTMS.jl Documentation
+# LTDTMS.jl: A probabilistic LTDTMS-model integrator for TMS activation localization
 
 LTDTMS.jl is an octree-based integrator for location-threshold-direction TMS
 (LTDTMS) localization model.[^1]

@@ -44,7 +44,7 @@ function get_site_stats_ml(T,E,K,Ethrprior; kwargs...)
         s[site,:] = stats[2]
         Ethr[site] = stats[3]
         d[site,:] = stats[4]
-        if Threads.threadid() == 1 
+        if Threads.threadid() == 1 && site%10 == 0
             println("site: $(site), approx. percentage: $(round(100*nthreads*site/nsite))") # TODO: use ProgressMeter or something similar
             flush(stdout)
         end

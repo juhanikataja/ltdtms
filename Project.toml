@@ -1,7 +1,7 @@
 name = "LTDTMS"
 uuid = "c7e4ac26-072f-4b76-a9df-71c99249ca70"
 authors = ["Juhani Kataja <juhani.m.kataja@aalto.fi>"]
-version = "0.9.1"
+version = "0.9.2"
 
 [deps]
 AdvancedHMC = "0bf59076-c3b1-5ca4-86bd-e02cd72cde3d"

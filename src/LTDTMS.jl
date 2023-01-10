@@ -36,18 +36,19 @@ function get_site_stats_ml(T,E,K,Ethrprior; kwargs...)
   Ethr = zeros(Float64, (nsite,))
   d = zeros(Float64, (nsite,3))
   s = zeros(Float64, (nsite,3))
+
   nthreads = Threads.nthreads()
-  Threads.@threads for site in 1:nsite
-    stats = get_site_stats(site, thrdat; kwargs...)
-    Z[site] = stats[1]
-    s[site,:] = stats[2]
-    Ethr[site] = stats[3]
-    d[site,:] = stats[4]
-    if Threads.threadid() == 1 
-        println("site: $(site), approx. percentage: $(round(100*nthreads*site/nsite))") # TODO: use ProgressMeter or something similar
-        flush(stdout)
+    Threads.@threads for site in 1:nsite
+        stats = get_site_stats(site, thrdat; kwargs...)
+        Z[site] = stats[1]
+        s[site,:] = stats[2]
+        Ethr[site] = stats[3]
+        d[site,:] = stats[4]
+        if Threads.threadid() == 1 
+            println("site: $(site), approx. percentage: $(round(100*nthreads*site/nsite))") # TODO: use ProgressMeter or something similar
+            flush(stdout)
+        end
     end
-  end
   Dict(:Z => Z, :d => d, :Ethr => Ethr, :s => s)
 end
 

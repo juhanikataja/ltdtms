@@ -1,5 +1,6 @@
 using AdvancedHMC
 using LinearAlgebra
+using LogDensityProblems
 import ForwardDiff
 using Optim
 import ForwardDiff: Dual
@@ -18,7 +19,7 @@ function get_samples(dat::ThrData, n,lambda;n_samples=2000, progress=false, n_ad
 
   metric=DenseEuclideanMetric(D)
 
-  hamiltonian = Hamiltonian(metric, s->lpost(s, lambda, dat, n), ForwardDiff)
+  hamiltonian = Hamiltonian(metric, LogTargetDensity(D, s->lpost(s, lambda, dat, n)), ForwardDiff)
 
   initial_e = find_good_stepsize(hamiltonian, initial_th)
   integrator = Leapfrog(initial_e)
@@ -44,7 +45,7 @@ function get_samples(dat::ThrData, lpdf::Function, n; n_samples=2000, progress=f
 
   metric=DenseEuclideanMetric(D)
 
-  hamiltonian = Hamiltonian(metric, s->lpdf(s, dat, n), ForwardDiff)
+  hamiltonian = Hamiltonian(metric, LogTargetDensity(D, s->lpdf(s, dat, n)), ForwardDiff)
 
   initial_e = find_good_eps(hamiltonian, initial_th)
   integrator = Leapfrog(initial_e)
@@ -85,10 +86,23 @@ function stereo_post(s, α, dat::ThrData, site, Q)
 end
 # End of stereo maps and dets (don't export these) }}}
 
+
+struct LogTargetDensity
+    dim::Int
+    logpi::Function
+end
+
+LogDensityProblems.logdensity(p::LogTargetDensity, θ) = p.logpi(θ)
+LogDensityProblems.dimension(p::LogTargetDensity) = p.dim
+LogDensityProblems.capabilities(::Type{LogTargetDensity}) = LogDensityProblems.LogDensityOrder{0}()
+
 function get_samples_nuts(logπ, initial_θ, D::Int64; 
     n_samples=1000, n_adapts=200, progress=false)
+    
+    ℓπ = LogTargetDensity(D,logπ)
+
     metric = DenseEuclideanMetric(D)
-      hamiltonian = Hamiltonian(metric, logπ, ForwardDiff)
+    hamiltonian = Hamiltonian(metric, ℓπ, ForwardDiff)
     integrator = Leapfrog(find_good_stepsize(hamiltonian, initial_θ))
     proposal = NUTS{MultinomialTS, GeneralisedNoUTurn}(integrator)
     samples, stats = sample(hamiltonian, 

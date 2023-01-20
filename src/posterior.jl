@@ -271,8 +271,8 @@ end
 dimension(p::LogComparisonDensity) = 2
 capabilities(::Type{LogComparisonDensity}) = LogDensityProblems.LogDensityOrder{0}()
 
-function comparisonMLH(data::Array{Number,1})
-    ℓπ=LogComparisonDensity(data)
+function comparisonMLH(data)
+    ℓπ=LogComparisonDensity(Array{Number,1}(data))
     metric = DenseEuclideanMetric(2)
     hamiltonian = Hamiltonian(metric, ℓπ, ForwardDiff)
     initial_θ = [0.5, 0.5]

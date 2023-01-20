@@ -6,7 +6,7 @@ include("posterior.jl")
 
 import .Lpdfs: lpost, ThrData, lpost_simple
 
-export get_site_stats, makeThrData, get_site_stats_ml, ThrData
+export get_site_stats, makeThrData, get_site_stats_ml, ThrData, comparisonMLH
 
 ## mangle a Dictionary to ThrData
 function makeThrData(indat::Dict) 

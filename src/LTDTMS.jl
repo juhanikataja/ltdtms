@@ -28,7 +28,7 @@ MATDaemon.jl returning the results in Dictionary format with keys `(:Z, :d, :Eth
 
 Uses threads. For keyword arguments, see [`get_site_stats`](@ref).
 """
-function get_site_stats_ml(T,E,K,Ethrprior; kwargs...)
+function get_site_stats_ml(T,E,K,Ethrprior,num_s_samples=100, verbose=true; kwargs...)
   thrdat = ThrData(T, E, K, Ethrprior)
   nsite = size(thrdat.EE,3)
 
@@ -36,6 +36,7 @@ function get_site_stats_ml(T,E,K,Ethrprior; kwargs...)
   Ethr = zeros(Float64, (nsite,))
   d = zeros(Float64, (nsite,3))
   s = zeros(Float64, (nsite,3))
+  s_samples = zeros(Float64, (nsite, 3, num_s_samples))
 
   nthreads = Threads.nthreads()
     Threads.@threads for site in 1:nsite
@@ -44,7 +45,8 @@ function get_site_stats_ml(T,E,K,Ethrprior; kwargs...)
         s[site,:] = stats[2]
         Ethr[site] = stats[3]
         d[site,:] = stats[4]
-        if Threads.threadid() == 1 && site%10 == 0
+        s_samples[site,:,:] = hcat(stats[5][1:num_s_samples]...)
+        if Threads.threadid() == 1 && site%10 == 0 && verbose
             println("site: $(site), approx. percentage: $(round(100*nthreads*site/nsite))") # TODO: use ProgressMeter or something similar
             flush(stdout)
         end

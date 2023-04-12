@@ -194,7 +194,7 @@ function get_site_stats(sites::Union{Int64, Array{Int64,1}, UnitRange{Int64}}, d
     #= integrals = treeint.integrate(tree_integrand, vcat(samples'...); pad=0.21, maxdepth=4) =#
     #= @info "mean_s[1:3], integrals[2:4] ./integrals[1]: $(mean_s[1:3]), $(integrals[2:4] ./integrals[1])" =#
 
-    return tree_integral/logZmult, mean_s, mean_Ethr, mean_d
+    return tree_integral/logZmult, mean_s, mean_Ethr, mean_d, cart_samples
   end
   retval
 

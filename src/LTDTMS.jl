@@ -39,7 +39,7 @@ function get_site_stats_ml(T,E,K,Ethrprior,num_s_samples=100, verbose=true; kwar
   s_samples = zeros(Float64, (nsite, 3, num_s_samples))
 
   nthreads = Threads.nthreads()
-    Threads.@threads for site in 1:nsite
+    Threads.@threads :static for site in 1:nsite
         stats = get_site_stats(site, thrdat; kwargs...)
         Z[site] = stats[1]
         s[site,:] = stats[2]

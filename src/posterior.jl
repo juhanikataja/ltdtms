@@ -92,6 +92,7 @@ struct LogTargetDensity
     logpi::Function
 end
 
+
 LogDensityProblems.logdensity(p::LogTargetDensity, θ) = p.logpi(θ)
 LogDensityProblems.dimension(p::LogTargetDensity) = p.dim
 LogDensityProblems.capabilities(::Type{LogTargetDensity}) = LogDensityProblems.LogDensityOrder{0}()
@@ -193,7 +194,7 @@ function get_site_stats(sites::Union{Int64, Array{Int64,1}, UnitRange{Int64}}, d
     #= integrals = treeint.integrate(tree_integrand, vcat(samples'...); pad=0.21, maxdepth=4) =#
     #= @info "mean_s[1:3], integrals[2:4] ./integrals[1]: $(mean_s[1:3]), $(integrals[2:4] ./integrals[1])" =#
 
-    return tree_integral/logZmult, mean_s, mean_Ethr, mean_d
+    return tree_integral/logZmult, mean_s, mean_Ethr, mean_d, cart_samples
   end
   retval
 
@@ -242,6 +243,56 @@ function get_site_stats_path(site, dat::ThrData;
   logquot = sum( (λs[2:end]-λs[1:end-1]).*(Es[1:end-1] + Es[2:end]))/2;
   Z = exp(logquot)/(4/3*π)*(sqrt(2*π)*0.35)^3
   return Z, mean_s, mean_Ethr, mean_d
+end
+
+## Pessimistic model comparison with lognormal distribution comparison 
+#
+struct LogComparisonDensity
+    data::Array{Number,1}
+end
+
+import LogDensityProblems.logdensity
+import LogDensityProblems.dimension
+import LogDensityProblems.capabilities
+
+
+function logdensity(p::LogComparisonDensity, θ) 
+    mapreduce(+,p.data) do x
+        let μ = θ[1], σ =θ[2]
+            if σ < 0.0
+                -Inf
+            else
+                y = - log(x*σ*sqrt(2π)) - (log(x)-μ)^2/(2*σ^2)
+            end
+        end
+    end
+end
+
+dimension(p::LogComparisonDensity) = 2
+capabilities(::Type{LogComparisonDensity}) = LogDensityProblems.LogDensityOrder{0}()
+
+function comparisonMLH(data)
+    ℓπ=LogComparisonDensity(Array{Number,1}(data))
+    metric = DenseEuclideanMetric(2)
+    hamiltonian = Hamiltonian(metric, ℓπ, ForwardDiff)
+    initial_θ = [0.5, 0.5]
+    integrator = Leapfrog(find_good_stepsize(hamiltonian, initial_θ))
+    proposal = NUTS{MultinomialTS, GeneralisedNoUTurn}(integrator)
+    n_samples=1000
+    n_adapts=1000
+
+    samples, _ = sample(hamiltonian, 
+        proposal,
+        initial_θ, 
+        n_samples+n_adapts, 
+        StanHMCAdaptor(MassMatrixAdaptor(metric), StepSizeAdaptor(0.8, integrator)),
+        n_adapts;
+        progress=false, verbose=false, 
+        drop_warmup=true)
+
+    treeint.integrate(
+        θ->exp(logdensity(ℓπ, θ)), 
+        Matrix(hcat(samples...)'); maxdepth=10, pad=0.51)
 end
 
 

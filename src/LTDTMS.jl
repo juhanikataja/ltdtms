@@ -1,4 +1,5 @@
 module LTDTMS
+using ProgressMeter
 
 include("lpdfs.jl")
 include("treeint.jl")
@@ -38,7 +39,8 @@ function get_site_stats_ml(T,E,K,Ethrprior,num_s_samples=100, verbose=true; kwar
   s = zeros(Float64, (nsite,3))
   s_samples = zeros(Float64, (nsite, 3, num_s_samples))
 
-  nthreads = Threads.nthreads()
+    progress_meter = Progress(nsite)
+    nthreads = Threads.nthreads()
     Threads.@threads for site in 1:nsite
         stats = get_site_stats(site, thrdat; kwargs...)
         Z[site] = stats[1]
@@ -46,12 +48,17 @@ function get_site_stats_ml(T,E,K,Ethrprior,num_s_samples=100, verbose=true; kwar
         Ethr[site] = stats[3]
         d[site,:] = stats[4]
         s_samples[site,:,:] = hcat(stats[5][1:num_s_samples]...)
-        if Threads.threadid() == 1 && site%10 == 0 && verbose
-            println("site: $(site), approx. percentage: $(round(100*nthreads*site/nsite))") # TODO: use ProgressMeter or something similar
-            flush(stdout)
+        if verbose
+            next!(progress_meter)
         end
+        # if Threads.threadid() == 1 && site%10 == 0 && verbose
+            # println("site: $(site), approx. percentage: $(round(100*nthreads*site/nsite))") # TODO: use ProgressMeter or something similar
+            # flush(stdout)
+        # end
     end
-  Dict(:Z => Z, :d => d, :Ethr => Ethr, :s => s)
+    finish!(progress_meter)
+
+  Dict(:Z => Z, :d => d, :Ethr => Ethr, :s => s, :s_samples=>s_samples)
 end
 
 end # module

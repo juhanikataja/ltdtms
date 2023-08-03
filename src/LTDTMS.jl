@@ -28,19 +28,23 @@ Wrapper for `get_site_stats(site, dat; kwargs...)` that plays well with
 MATDaemon.jl returning the results in Dictionary format with keys `(:Z, :d, :Ethr, :s)`.
 
 Uses threads. For keyword arguments, see [`get_site_stats`](@ref).
+
 """
 function get_site_stats_ml(T,E,K,Ethrprior,num_s_samples=100, verbose=true, save_samples=false; kwargs...)
-  thrdat = ThrData(T, E, K, Ethrprior)
-  nsite = size(thrdat.EE,3)
+    thrdat = ThrData(T, E, K, Ethrprior)
+    nsite = size(thrdat.EE,3)
 
-  Z = zeros(Float64, (nsite,))
-  Ethr = zeros(Float64, (nsite,))
-  d = zeros(Float64, (nsite,3))
-  s = zeros(Float64, (nsite,3))
-  s_samples = zeros(Float64, (nsite, 3, num_s_samples))
+    Z = zeros(Float64, (nsite,))
+    Ethr = zeros(Float64, (nsite,))
+    d = zeros(Float64, (nsite,3))
+    s = zeros(Float64, (nsite,3))
 
+    num_s_samples = ifelse(haskey(kwargs,:n_samples), kwargs[:n_samples], num_s_samples)
+    s_samples = zeros(Float64, (nsite, 3, num_s_samples))
     progress_meter = Progress(nsite; output=stdout)
+
     nthreads = Threads.nthreads()
+
     Threads.@threads for site in 1:nsite
         stats = get_site_stats(site, thrdat; kwargs...)
         Z[site] = stats[1]

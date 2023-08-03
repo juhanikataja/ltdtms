@@ -29,7 +29,7 @@ MATDaemon.jl returning the results in Dictionary format with keys `(:Z, :d, :Eth
 
 Uses threads. For keyword arguments, see [`get_site_stats`](@ref).
 """
-function get_site_stats_ml(T,E,K,Ethrprior,num_s_samples=100, verbose=true; kwargs...)
+function get_site_stats_ml(T,E,K,Ethrprior,num_s_samples=100, verbose=true, save_samples=false; kwargs...)
   thrdat = ThrData(T, E, K, Ethrprior)
   nsite = size(thrdat.EE,3)
 
@@ -39,7 +39,7 @@ function get_site_stats_ml(T,E,K,Ethrprior,num_s_samples=100, verbose=true; kwar
   s = zeros(Float64, (nsite,3))
   s_samples = zeros(Float64, (nsite, 3, num_s_samples))
 
-    progress_meter = Progress(nsite)
+    progress_meter = Progress(nsite; output=stdout)
     nthreads = Threads.nthreads()
     Threads.@threads for site in 1:nsite
         stats = get_site_stats(site, thrdat; kwargs...)
@@ -47,18 +47,21 @@ function get_site_stats_ml(T,E,K,Ethrprior,num_s_samples=100, verbose=true; kwar
         s[site,:] = stats[2]
         Ethr[site] = stats[3]
         d[site,:] = stats[4]
-        s_samples[site,:,:] = hcat(stats[5][1:num_s_samples]...)
+        if save_samples
+            s_samples[site,:,:] = hcat(stats[5][1:num_s_samples]...)
+        end
         if verbose
             next!(progress_meter)
+            flush(stdout)
         end
-        # if Threads.threadid() == 1 && site%10 == 0 && verbose
-            # println("site: $(site), approx. percentage: $(round(100*nthreads*site/nsite))") # TODO: use ProgressMeter or something similar
-            # flush(stdout)
-        # end
     end
     finish!(progress_meter)
 
-  Dict(:Z => Z, :d => d, :Ethr => Ethr, :s => s, :s_samples=>s_samples)
+    if save_samples
+        Dict(:Z => Z, :d => d, :Ethr => Ethr, :s => s, :s_samples=>s_samples)
+    else
+        Dict(:Z => Z, :d => d, :Ethr => Ethr, :s => s)
+    end
 end
 
 end # module

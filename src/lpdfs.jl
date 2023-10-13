@@ -8,12 +8,14 @@ export lpost, ThrData, lpost_simple, lpost_simple_tes
   Collects a motor threshold object that holds measured thresholds `MT`,
   electric field data `EE`, noise coeff `K`, inverse of prior threshold for
   electric field `smax = 1/Ethrprior`.
+  If `E_predict` field is present, use that to predict thresholds associated to those fields.
 
   # Constructors
 
     ThrData(MT::Array{Float64,1}, E::Array{Float64,3}, K::Float64, Ethrprior::Float64, h::Float64)
     ThrData(MT::AbstractArray, E::Array{Float64,2}, K::Float64, Ethrprior::Float64)
     ThrData(MT::AbstractArray, E::Matrix{Float64}, K::Float64, Ethrprior::Float64) 
+    ThrData(MT::AbstractArray, E::Array{Float64,3}, K::Float64, Ethrprior::Float64, E_predict::Union{Array{Float64,3}, Nothing})
   
   # Fields
 
@@ -21,23 +23,29 @@ export lpost, ThrData, lpost_simple, lpost_simple_tes
     EE::Array{Float64,3}
     K::Float64
     smax::Float64
+    E_predict::Union{Array{Float64,3}, Nothing}
+
 """
 struct ThrData
   MT::Array{Float64,1}
   EE::Array{Float64,3}
   K::Float64
   smax::Float64
+  E_predict::Union{Array{Float64,3}, Nothing}
 
   # Constructors
-  ThrData(MT::AbstractArray, E::Array{Float64,3}, K::Float64, Ethrprior::Float64) = 
+  ThrData(MT::AbstractArray, E::Array{Float64,3}, K::Float64, Ethrprior::Float64, E_predict::Union{Array{Float64,3}, Nothing}) = 
   begin
     return if size(MT,1) == size(E,1) && Ethrprior > 0.0 && K > 0.0
-        new(MT[:], E, K, 1/Ethrprior)
+        new(MT[:], E, K, 1/Ethrprior, E_predict)
     else
       error("Incompatible input data")
       new()
     end
   end
+        
+  ThrData(MT::AbstractArray, E::Array{Float64,3}, K::Float64, Ethrprior::Float64) = 
+    ThrData(MT, E, K, Ethrprior, nothing)
 
   ThrData(MT::AbstractArray, E::Array{Float64,2}, K::Float64, Ethrprior::Float64) = 
     ThrData(MT[:], reshape(E, tuple(size(E)..., 1)), K, Ethrprior)

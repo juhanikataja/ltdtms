@@ -92,7 +92,6 @@ struct LogTargetDensity
     logpi::Function
 end
 
-
 LogDensityProblems.logdensity(p::LogTargetDensity, θ) = p.logpi(θ)
 LogDensityProblems.dimension(p::LogTargetDensity) = p.dim
 LogDensityProblems.capabilities(::Type{LogTargetDensity}) = LogDensityProblems.LogDensityOrder{0}()
@@ -190,11 +189,13 @@ function get_site_stats(sites::Union{Int64, Array{Int64,1}, UnitRange{Int64}}, d
     mean_s = sum(cart_samples)/length(cart_samples)
     mean_Ethr = sum( (x->1 /sqrt(sum(x.^2))).(cart_samples) )/length(cart_samples)
     mean_d =    sum( (x->x./sqrt(sum(x.^2))).(cart_samples) )/length(cart_samples)
+    mean_thr = sum( (x->1 ./ (dat.EE[:,:,site]*x)).(cart_samples) )/length(cart_samples)
+            # sqrt(sum(x.^2))). (cart_samples) )/length(cart_samples)
 
     #= integrals = treeint.integrate(tree_integrand, vcat(samples'...); pad=0.21, maxdepth=4) =#
     #= @info "mean_s[1:3], integrals[2:4] ./integrals[1]: $(mean_s[1:3]), $(integrals[2:4] ./integrals[1])" =#
 
-    return tree_integral/logZmult, mean_s, mean_Ethr, mean_d, cart_samples
+    return tree_integral/logZmult, mean_s, mean_Ethr, mean_d, cart_samples, mean_thr
   end
   retval
 

@@ -291,9 +291,10 @@ function comparisonMLH(data)
         progress=false, verbose=false, 
         drop_warmup=true)
 
-    treeint.integrate(
+    I = treeint.integrate(
         θ->exp(logdensity(ℓπ, θ)), 
         Matrix(hcat(samples...)'); maxdepth=10, pad=0.51)
+    return I, samples
 end
 
 
